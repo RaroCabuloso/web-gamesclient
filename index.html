@@ -936,6 +936,20 @@
                 padding: 4px 10px; border-radius: 6px; pointer-events: none; display: none; letter-spacing: 0.5px; }
             #gameFpsCounter.no-bg { background: transparent; padding: 0; }
             #gameFpsCounter.rgb { color: #ff0040; animation: hudHueRotate 4s linear infinite; }
+            #gameKeystrokes { position: fixed; bottom: 20px; left: 20px; z-index: 2147482000;
+                display: none; flex-direction: column; align-items: center; gap: 8px;
+                pointer-events: none; user-select: none; }
+            #gameKeystrokes .ks-row { display: flex; gap: 8px; }
+            #gameKeystrokes .ks-key { min-width: 46px; height: 46px; padding: 0 10px; display: flex;
+                flex-direction: column; align-items: center; justify-content: center;
+                background: rgba(20,22,26,0.85); color: #fff; border-radius: 6px;
+                font-family: 'Consolas', 'Segoe UI', monospace; font-size: 14px; font-weight: 700;
+                letter-spacing: 0.5px; box-shadow: 0 4px 0 rgba(0,0,0,0.55); transition: transform 0.05s, background 0.05s, box-shadow 0.05s; }
+            #gameKeystrokes .ks-key.active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,0.55);
+                background: #4caf50; }
+            #gameKeystrokes .ks-mouse { min-width: 78px; }
+            #gameKeystrokes .ks-space { min-width: 210px; }
+            #gameKeystrokes .ks-cps { font-size: 10px; font-weight: 500; opacity: 0.85; margin-top: 3px; }
             .hud-movable.editing { pointer-events: auto !important; cursor: move;
                 outline: 2px dashed #4caf50; outline-offset: 3px; }
             @keyframes hudHueRotate { to { filter: hue-rotate(360deg); } }
@@ -969,6 +983,16 @@
                                     <div class="hud-toggle"></div>
                                 </div>
                             </div>
+                            <div class="hud-card" id="hudKeystrokesCard">
+                                <div class="hud-card-left">
+                                    <div class="hud-card-icon"><i class="fa-solid fa-keyboard"></i></div>
+                                    <span class="hud-card-text">Keystrokes</span>
+                                </div>
+                                <div class="hud-card-right">
+                                    <div class="hud-keybind empty" data-bind="keystrokes" title="Definir atalho de teclado">--</div>
+                                    <div class="hud-toggle"></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -985,7 +1009,7 @@
                                 </div>
                             </div>
                         </div>
-                        <p class="hud-note">Com o <strong>UI Editor</strong> ligado, arraste os elementos criados pelo client (ex.: o contador de FPS) para reposicioná-los. A posição é salva automaticamente.</p>
+                        <p class="hud-note">Com o <strong>UI Editor</strong> ligado, arraste os elementos criados pelo client (ex.: o contador de FPS e o overlay de Keystrokes) para reposicioná-los. A posição é salva automaticamente.</p>
                     </div>
 
                     <div class="hud-view" id="hudViewInfo" style="display:none;">
@@ -1017,6 +1041,19 @@
                 </div>
             </div>
             <div id="gameFpsCounter" class="hud-movable">0 FPS</div>
+            <div id="gameKeystrokes" class="hud-movable">
+                <div class="ks-row"><div class="ks-key" data-k="w">W</div></div>
+                <div class="ks-row">
+                    <div class="ks-key" data-k="a">A</div>
+                    <div class="ks-key" data-k="s">S</div>
+                    <div class="ks-key" data-k="d">D</div>
+                </div>
+                <div class="ks-row">
+                    <div class="ks-key ks-mouse" data-k="lmb">LMB<span class="ks-cps" id="ksCpsL">0 CPS</span></div>
+                    <div class="ks-key ks-mouse" data-k="rmb">RMB<span class="ks-cps" id="ksCpsR">0 CPS</span></div>
+                </div>
+                <div class="ks-row"><div class="ks-key ks-space" data-k="space">SPACE</div></div>
+            </div>
         `;
 
         // localStorage helpers that never throw (pop-up windows may restrict storage).
@@ -1110,6 +1147,10 @@
             const fpsBgToggle = doc.getElementById('hudFpsBgToggle');
             const fpsRgbToggle = doc.getElementById('hudFpsRgbToggle');
             const fpsOpacity = doc.getElementById('hudFpsOpacity');
+            const keystrokesCard = doc.getElementById('hudKeystrokesCard');
+            const keystrokes = doc.getElementById('gameKeystrokes');
+            const ksCpsL = doc.getElementById('ksCpsL');
+            const ksCpsR = doc.getElementById('ksCpsR');
 
             const canOpen = options.canOpen || (() => true);
             const fpsActive = options.fpsActive || (() => true);
@@ -1120,6 +1161,7 @@
             let fpsRgb = hudGet('hudFpsRgb', '0') === '1';
             let fpsOpacityVal = parseInt(hudGet('hudFpsOpacity', '100'), 10) || 100;
             let uiEditorOn = hudGet('hudUiEditor', '0') === '1';
+            let keystrokesOn = hudGet('hudKeystrokes', '0') === '1';
 
             // --- FPS counter loop ---
             let rafId = null, frames = 0, lastTime = win.performance.now();
@@ -1162,6 +1204,58 @@
                 doc.querySelectorAll('.hud-movable').forEach((el) => el.classList.toggle('editing', uiEditorOn));
             }
 
+            // --- Keystrokes overlay (WASD + LMB/RMB + SPACE with live CPS) ---
+            // Maps physical key codes to the data-k attribute of each rendered key.
+            const ksKeyMap = { KeyW: 'w', KeyA: 'a', KeyS: 's', KeyD: 'd', Space: 'space' };
+            const ksEl = (k) => keystrokes.querySelector('.ks-key[data-k="' + k + '"]');
+            let clicksL = [], clicksR = [];
+
+            function applyKeystrokes() {
+                keystrokesCard.classList.toggle('active', keystrokesOn);
+                const show = keystrokesOn && fpsActive();
+                keystrokes.style.display = show ? 'flex' : 'none';
+                if (!show) {
+                    // Clear any stuck highlights when hidden.
+                    keystrokes.querySelectorAll('.ks-key.active').forEach((el) => el.classList.remove('active'));
+                }
+            }
+
+            function ksDown(e) {
+                if (!keystrokesOn || e.repeat) return;
+                const k = ksKeyMap[e.code];
+                if (!k) return;
+                const el = ksEl(k);
+                if (el) el.classList.add('active');
+            }
+            function ksUp(e) {
+                const k = ksKeyMap[e.code];
+                if (!k) return;
+                const el = ksEl(k);
+                if (el) el.classList.remove('active');
+            }
+            function ksMouseDown(e) {
+                if (!keystrokesOn || uiEditorOn) return; // ignore clicks while repositioning
+                if (e.button === 0) { const el = ksEl('lmb'); if (el) el.classList.add('active'); clicksL.push(win.performance.now()); }
+                else if (e.button === 2) { const el = ksEl('rmb'); if (el) el.classList.add('active'); clicksR.push(win.performance.now()); }
+            }
+            function ksMouseUp(e) {
+                if (e.button === 0) { const el = ksEl('lmb'); if (el) el.classList.remove('active'); }
+                else if (e.button === 2) { const el = ksEl('rmb'); if (el) el.classList.remove('active'); }
+            }
+            function ksContextMenu(e) { if (keystrokesOn) e.preventDefault(); }
+
+            // CPS = clicks within the last second. Cheap interval, only updates text.
+            function cpsOf(arr) {
+                const now = win.performance.now();
+                while (arr.length && now - arr[0] > 1000) arr.shift();
+                return arr.length;
+            }
+            win.setInterval(() => {
+                if (!keystrokesOn) return;
+                if (ksCpsL) ksCpsL.textContent = cpsOf(clicksL) + ' CPS';
+                if (ksCpsR) ksCpsR.textContent = cpsOf(clicksR) + ' CPS';
+            }, 100);
+
             // --- Show FPS card toggle (ignore clicks on the gear) ---
             fpsCard.addEventListener('click', (e) => {
                 if (e.target.closest('#hudFpsSettingsBtn') || e.target.closest('.hud-keybind')) return;
@@ -1200,6 +1294,14 @@
                 uiEditorOn = !uiEditorOn;
                 hudSet('hudUiEditor', uiEditorOn ? '1' : '0');
                 applyUiEditor();
+                applyKeystrokes();
+            });
+
+            keystrokesCard.addEventListener('click', (e) => {
+                if (e.target.closest('.hud-keybind')) return;
+                keystrokesOn = !keystrokesOn;
+                hudSet('hudKeystrokes', keystrokesOn ? '1' : '0');
+                applyKeystrokes();
             });
 
             // --- Configurable keybinds for every toggle option ---
@@ -1216,6 +1318,12 @@
                     uiEditorOn = !uiEditorOn;
                     hudSet('hudUiEditor', uiEditorOn ? '1' : '0');
                     applyUiEditor();
+                    applyKeystrokes();
+                },
+                keystrokes: () => {
+                    keystrokesOn = !keystrokesOn;
+                    hudSet('hudKeystrokes', keystrokesOn ? '1' : '0');
+                    applyKeystrokes();
                 },
             };
             let capturingBind = null; // id of the bind currently waiting for a key
@@ -1306,19 +1414,29 @@
                     }
                 }
             }
-            win.addEventListener('keydown', hudKeyHandler);
-
-            // Wires the same shortcut into another (same-origin) window, e.g. a game
-            // iframe. Cross-origin frames throw and silently fall back to the button.
-            win.__attachHudKeys = function (otherWin) {
+            // Attaches every HUD input listener (shortcuts + keystrokes overlay) to a
+            // window. Used for the launcher window and, when same-origin, the game frame
+            // so the keystrokes overlay reflects input made INSIDE the game.
+            function attachHudInput(targetWin) {
                 try {
-                    if (otherWin && otherWin !== win) {
-                        otherWin.addEventListener('keydown', hudKeyHandler);
-                    }
+                    targetWin.addEventListener('keydown', hudKeyHandler);
+                    targetWin.addEventListener('keydown', ksDown);
+                    targetWin.addEventListener('keyup', ksUp);
+                    targetWin.addEventListener('mousedown', ksMouseDown);
+                    targetWin.addEventListener('mouseup', ksMouseUp);
+                    targetWin.addEventListener('contextmenu', ksContextMenu);
                     return true;
                 } catch (err) {
                     return false;
                 }
+            }
+            attachHudInput(win);
+
+            // Wires the same listeners into another (same-origin) window, e.g. a game
+            // iframe. Cross-origin frames throw and silently fall back to the button.
+            win.__attachHudKeys = function (otherWin) {
+                if (otherWin && otherWin !== win) return attachHudInput(otherWin);
+                return false;
             };
 
             // --- Sidebar view switching ---
@@ -1343,16 +1461,19 @@
             // --- Dragging: menu by header (always), FPS counter when UI editor is on ---
             hudMakeDraggable(win, overlay, header, 'hudMenuPos', null);
             hudMakeDraggable(win, fpsCounter, fpsCounter, 'hudFpsPos', () => uiEditorOn);
+            hudMakeDraggable(win, keystrokes, keystrokes, 'hudKsPos', () => uiEditorOn);
             hudRestorePos(overlay, 'hudMenuPos');
             hudRestorePos(fpsCounter, 'hudFpsPos');
+            hudRestorePos(keystrokes, 'hudKsPos');
 
             win.__closeGameHud = closeHud;
-            win.__refreshGameHud = applyFps;
+            win.__refreshGameHud = () => { applyFps(); applyKeystrokes(); };
             win.__toggleGameHud = toggleHud;
 
             applyFpsStyle();
             applyUiEditor();
             applyFps();
+            applyKeystrokes();
         }
 
         function toggleFullscreen() {
