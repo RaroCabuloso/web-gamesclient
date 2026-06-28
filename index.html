@@ -351,6 +351,7 @@
         let currentTab = 'url';
         let selectedFileContent = null;
         let currentGameSrc = '';
+        let currentGameName = '';
 
         // Default games for Home view
         const defaultGames = [
@@ -377,6 +378,18 @@
             loadPreferences();
             
             switchView('home');
+
+            // In-game settings HUD (Ctrl + U) for the in-launcher player
+            mountGameHud(window, {
+                canOpen: () => {
+                    const p = document.getElementById('playerModal');
+                    return p && !p.classList.contains('hidden');
+                },
+                fpsActive: () => {
+                    const p = document.getElementById('playerModal');
+                    return p && !p.classList.contains('hidden');
+                }
+            });
             
             document.getElementById('gameFileInput').addEventListener('change', function(e) {
                 const file = e.target.files[0];
@@ -693,6 +706,7 @@
             if (!modal || !iframe || !title || !loader) return;
 
             currentGameSrc = game.src;
+            currentGameName = game.name;
             title.textContent = game.name;
             modal.classList.remove('hidden');
             loader.classList.remove('hidden');
@@ -702,6 +716,9 @@
             iframe.onload = () => {
                 loader.classList.add('hidden');
             };
+
+            // Start/refresh the in-game HUD overlay
+            if (window.__refreshGameHud) window.__refreshGameHud();
         }
 
         function closePlayer() {
@@ -714,11 +731,217 @@
             if (document.fullscreenElement) {
                 document.exitFullscreen().catch(err => console.log(err));
             }
+
+            // Close the HUD and pause the FPS counter
+            if (window.__closeGameHud) window.__closeGameHud();
+            if (window.__refreshGameHud) window.__refreshGameHud();
         }
 
         function openInNewWindow() {
             if (!currentGameSrc) return;
-            window.open(currentGameSrc, '_blank');
+            const popup = window.open('', '_blank');
+            if (!popup) {
+                alert('Permita pop-ups para abrir o jogo em uma nova janela.');
+                return;
+            }
+            popup.document.open();
+            popup.document.write(buildPopupDocument(currentGameSrc, currentGameName));
+            popup.document.close();
+
+            // Mount the same in-game settings HUD inside the popup window
+            const mount = () => {
+                try { mountGameHud(popup); } catch (err) { console.log(err); }
+            };
+            if (popup.document.readyState === 'complete') {
+                mount();
+            } else {
+                popup.addEventListener('load', mount);
+            }
+        }
+
+        // Builds the standalone document for the pop-up game window.
+        // The game runs in a full-screen iframe; the HUD is injected afterwards.
+        function buildPopupDocument(src, name) {
+            const safeName = (name || 'Jogo').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${safeName}</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+        #popupGameFrame { position: absolute; inset: 0; width: 100%; height: 100%; border: none; }
+    </style>
+</head>
+<body>
+    <iframe id="popupGameFrame" src="${src}" allow="fullscreen"
+        sandbox="allow-scripts allow-same-origin allow-pointer-lock allow-forms allow-popups"></iframe>
+</body>
+</html>`;
+        }
+
+        // ============================================================
+        //  In-Game Settings HUD (Ctrl + U)
+        //  Shared by the in-launcher player and the pop-up window.
+        //  Starts with a single option: Show FPS.
+        // ============================================================
+        const HUD_CSS = `
+            #gameHudOverlay { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.95);
+                width: 760px; max-width: 92vw; height: 560px; max-height: 90vh; background: rgba(20,20,20,0.96);
+                -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border-radius: 16px;
+                border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 20px 50px rgba(0,0,0,0.6); display: flex;
+                opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s; z-index: 2147483000;
+                overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+            #gameHudOverlay.active { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
+            #gameHudOverlay * { box-sizing: border-box; margin: 0; padding: 0; }
+            #gameHudOverlay .hud-sidebar { width: 70px; background: rgba(0,0,0,0.3);
+                border-right: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column;
+                align-items: center; padding-top: 20px; }
+            #gameHudOverlay .hud-sidebar-item { width: 42px; height: 42px; display: flex; justify-content: center;
+                align-items: center; border-radius: 8px; color: #a0a0a0; margin-bottom: 14px; cursor: pointer;
+                transition: all 0.2s; font-size: 16px; }
+            #gameHudOverlay .hud-sidebar-item:hover, #gameHudOverlay .hud-sidebar-item.active {
+                background: rgba(255,255,255,0.1); color: #fff; }
+            #gameHudOverlay .hud-sidebar-spacer { flex-grow: 1; }
+            #gameHudOverlay .hud-content { flex: 1; padding: 24px; display: flex; flex-direction: column; overflow: hidden; }
+            #gameHudOverlay .hud-header { margin-bottom: 18px; display: flex; align-items: baseline; justify-content: space-between; }
+            #gameHudOverlay .hud-header h2 { color: #fff; font-weight: 500; font-size: 20px; }
+            #gameHudOverlay .hud-hint { color: #777; font-size: 12px; }
+            #gameHudOverlay .hud-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+                gap: 12px; overflow-y: auto; padding-right: 4px; align-content: start; }
+            #gameHudOverlay .hud-card { background: rgba(40,40,40,0.6); border: 1px solid rgba(255,255,255,0.1);
+                border-radius: 8px; padding: 12px 15px; display: flex; align-items: center; justify-content: space-between;
+                cursor: pointer; transition: all 0.2s; }
+            #gameHudOverlay .hud-card:hover { background: rgba(50,50,50,0.8); transform: translateY(-2px);
+                border-color: rgba(255,255,255,0.2); }
+            #gameHudOverlay .hud-card-left { display: flex; align-items: center; gap: 12px; }
+            #gameHudOverlay .hud-card-icon { width: 32px; height: 32px; background: rgba(255,255,255,0.05);
+                border-radius: 6px; display: flex; justify-content: center; align-items: center; color: #fff; font-size: 14px; }
+            #gameHudOverlay .hud-card-text { color: #fff; font-size: 14px; font-weight: 500; }
+            #gameHudOverlay .hud-toggle { width: 34px; height: 18px; background: rgba(255,255,255,0.2);
+                border-radius: 20px; position: relative; transition: 0.3s; flex-shrink: 0; }
+            #gameHudOverlay .hud-toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px;
+                height: 14px; background: #fff; border-radius: 50%; transition: 0.3s; }
+            #gameHudOverlay .hud-card.active .hud-toggle { background: #4caf50; }
+            #gameHudOverlay .hud-card.active .hud-toggle::after { transform: translateX(16px); }
+            #gameFpsCounter { position: fixed; top: 10px; left: 10px; z-index: 2147482000; background: rgba(0,0,0,0.55);
+                color: #4caf50; font-family: 'Consolas', 'Segoe UI', monospace; font-size: 14px; font-weight: 700;
+                padding: 4px 10px; border-radius: 6px; pointer-events: none; display: none; letter-spacing: 0.5px; }
+        `;
+
+        const HUD_HTML = `
+            <div id="gameHudOverlay">
+                <nav class="hud-sidebar">
+                    <div class="hud-sidebar-item active" data-action="geral" title="Geral"><i class="fa-solid fa-house"></i></div>
+                    <div class="hud-sidebar-item" data-action="config" title="Configurações"><i class="fa-solid fa-gear"></i></div>
+                    <div class="hud-sidebar-item" data-action="info" title="Informações"><i class="fa-solid fa-circle-info"></i></div>
+                    <div class="hud-sidebar-spacer"></div>
+                    <div class="hud-sidebar-item" data-action="close" title="Fechar (Esc)"><i class="fa-solid fa-power-off"></i></div>
+                </nav>
+                <main class="hud-content">
+                    <div class="hud-header">
+                        <h2>Configurações In-Game</h2>
+                        <span class="hud-hint">Ctrl + U para abrir/fechar</span>
+                    </div>
+                    <div class="hud-grid">
+                        <div class="hud-card" id="hudFpsCard">
+                            <div class="hud-card-left">
+                                <div class="hud-card-icon"><i class="fa-solid fa-gauge-high"></i></div>
+                                <span class="hud-card-text">Show FPS</span>
+                            </div>
+                            <div class="hud-card-right"><div class="hud-toggle"></div></div>
+                        </div>
+                    </div>
+                </main>
+            </div>
+            <div id="gameFpsCounter">0 FPS</div>
+        `;
+
+        // Mounts the HUD into the given window (launcher or pop-up) and wires its behaviour.
+        function mountGameHud(win, options) {
+            options = options || {};
+            const doc = win.document;
+            if (doc.getElementById('gameHudOverlay')) return;
+
+            const style = doc.createElement('style');
+            style.textContent = HUD_CSS;
+            doc.head.appendChild(style);
+
+            const holder = doc.createElement('div');
+            holder.innerHTML = HUD_HTML;
+            while (holder.firstChild) doc.body.appendChild(holder.firstChild);
+
+            const overlay = doc.getElementById('gameHudOverlay');
+            const fpsCard = doc.getElementById('hudFpsCard');
+            const fpsCounter = doc.getElementById('gameFpsCounter');
+
+            const canOpen = options.canOpen || (() => true);
+            const fpsActive = options.fpsActive || (() => true);
+
+            let fpsEnabled = false;
+            try { fpsEnabled = localStorage.getItem('hudShowFps') === '1'; } catch (e) {}
+
+            let rafId = null;
+            let frames = 0;
+            let lastTime = win.performance.now();
+
+            function fpsLoop(now) {
+                frames++;
+                if (now - lastTime >= 1000) {
+                    fpsCounter.textContent = Math.round((frames * 1000) / (now - lastTime)) + ' FPS';
+                    frames = 0;
+                    lastTime = now;
+                }
+                rafId = win.requestAnimationFrame(fpsLoop);
+            }
+
+            function applyFps() {
+                fpsCard.classList.toggle('active', fpsEnabled);
+                const show = fpsEnabled && fpsActive();
+                fpsCounter.style.display = show ? 'block' : 'none';
+                if (show && rafId === null) {
+                    frames = 0;
+                    lastTime = win.performance.now();
+                    rafId = win.requestAnimationFrame(fpsLoop);
+                } else if (!show && rafId !== null) {
+                    win.cancelAnimationFrame(rafId);
+                    rafId = null;
+                }
+            }
+
+            fpsCard.addEventListener('click', () => {
+                fpsEnabled = !fpsEnabled;
+                try { localStorage.setItem('hudShowFps', fpsEnabled ? '1' : '0'); } catch (e) {}
+                applyFps();
+            });
+
+            function toggleHud() { overlay.classList.toggle('active'); }
+            function closeHud() { overlay.classList.remove('active'); }
+
+            win.addEventListener('keydown', (e) => {
+                if (e.ctrlKey && (e.key === 'u' || e.key === 'U')) {
+                    if (!canOpen()) return;
+                    e.preventDefault();
+                    toggleHud();
+                } else if (e.key === 'Escape' && overlay.classList.contains('active')) {
+                    closeHud();
+                }
+            });
+
+            doc.querySelectorAll('#gameHudOverlay .hud-sidebar-item').forEach((item) => {
+                item.addEventListener('click', () => {
+                    if (item.dataset.action === 'close') { closeHud(); return; }
+                    doc.querySelectorAll('#gameHudOverlay .hud-sidebar-item')
+                        .forEach((i) => i.classList.remove('active'));
+                    item.classList.add('active');
+                });
+            });
+
+            win.__closeGameHud = closeHud;
+            win.__refreshGameHud = applyFps;
+            applyFps();
         }
 
         function toggleFullscreen() {
