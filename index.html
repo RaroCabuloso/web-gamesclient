@@ -899,6 +899,15 @@
             #gameHudOverlay .hud-settings-btn { width: 26px; height: 26px; display: flex; align-items: center;
                 justify-content: center; border-radius: 5px; color: #a0a0a0; cursor: pointer; transition: 0.2s; }
             #gameHudOverlay .hud-settings-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
+            #gameHudOverlay .hud-keybind { min-width: 30px; height: 24px; padding: 0 8px; display: flex;
+                align-items: center; justify-content: center; border-radius: 5px; background: rgba(255,255,255,0.08);
+                border: 1px solid rgba(255,255,255,0.18); color: #ddd; font-size: 11px; font-weight: 700;
+                text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer; transition: 0.2s; }
+            #gameHudOverlay .hud-keybind:hover { background: rgba(255,255,255,0.18); color: #fff; }
+            #gameHudOverlay .hud-keybind.empty { color: #777; font-weight: 500; }
+            #gameHudOverlay .hud-keybind.capturing { background: #4caf50; border-color: #4caf50; color: #fff;
+                animation: hudBindBlink 1s ease-in-out infinite; }
+            @keyframes hudBindBlink { 50% { opacity: 0.45; } }
             #gameHudOverlay .hud-toggle { width: 34px; height: 18px; background: rgba(255,255,255,0.2);
                 border-radius: 20px; position: relative; transition: 0.3s; flex-shrink: 0; }
             #gameHudOverlay .hud-toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px;
@@ -955,6 +964,7 @@
                                     <span class="hud-card-text">Show FPS</span>
                                 </div>
                                 <div class="hud-card-right">
+                                    <div class="hud-keybind empty" data-bind="fps" title="Definir atalho de teclado">--</div>
                                     <div class="hud-settings-btn" id="hudFpsSettingsBtn" title="Opções"><i class="fa-solid fa-gear"></i></div>
                                     <div class="hud-toggle"></div>
                                 </div>
@@ -969,14 +979,17 @@
                                     <div class="hud-card-icon"><i class="fa-solid fa-arrows-up-down-left-right"></i></div>
                                     <span class="hud-card-text">UI Editor</span>
                                 </div>
-                                <div class="hud-card-right"><div class="hud-toggle"></div></div>
+                                <div class="hud-card-right">
+                                    <div class="hud-keybind empty" data-bind="uiEditor" title="Definir atalho de teclado">--</div>
+                                    <div class="hud-toggle"></div>
+                                </div>
                             </div>
                         </div>
                         <p class="hud-note">Com o <strong>UI Editor</strong> ligado, arraste os elementos criados pelo client (ex.: o contador de FPS) para reposicioná-los. A posição é salva automaticamente.</p>
                     </div>
 
                     <div class="hud-view" id="hudViewInfo" style="display:none;">
-                        <p class="hud-note">Configurações In-Game.<br>Pressione <strong>Ctrl + U</strong> para abrir/fechar o menu.<br>Arraste a barra de título para mover o menu.</p>
+                        <p class="hud-note">Configurações In-Game.<br>Pressione <strong>Ctrl + U</strong> para abrir/fechar o menu.<br>Arraste a barra de título para mover o menu.<br><br>Cada opção tem um <strong>atalho de teclado</strong>: clique no botão <strong>--</strong> ao lado dela e pressione a tecla desejada. Depois, basta apertar essa tecla para ligar/desligar a opção (ex.: <strong>P</strong>). Pressione <strong>Esc</strong> durante a captura para cancelar.</p>
                     </div>
                 </main>
 
@@ -1151,7 +1164,7 @@
 
             // --- Show FPS card toggle (ignore clicks on the gear) ---
             fpsCard.addEventListener('click', (e) => {
-                if (e.target.closest('#hudFpsSettingsBtn')) return;
+                if (e.target.closest('#hudFpsSettingsBtn') || e.target.closest('.hud-keybind')) return;
                 fpsEnabled = !fpsEnabled;
                 hudSet('hudShowFps', fpsEnabled ? '1' : '0');
                 applyFps();
@@ -1182,11 +1195,59 @@
             });
 
             // --- UI Editor toggle ---
-            uiEditorCard.addEventListener('click', () => {
+            uiEditorCard.addEventListener('click', (e) => {
+                if (e.target.closest('.hud-keybind')) return;
                 uiEditorOn = !uiEditorOn;
                 hudSet('hudUiEditor', uiEditorOn ? '1' : '0');
                 applyUiEditor();
             });
+
+            // --- Configurable keybinds for every toggle option ---
+            // Map each bind id (matching data-bind on the badge) to the function that
+            // flips that option. Adding a new option = add a badge with data-bind="x"
+            // in HUD_HTML and register bindActions.x here. Nothing else is required.
+            const bindActions = {
+                fps: () => {
+                    fpsEnabled = !fpsEnabled;
+                    hudSet('hudShowFps', fpsEnabled ? '1' : '0');
+                    applyFps();
+                },
+                uiEditor: () => {
+                    uiEditorOn = !uiEditorOn;
+                    hudSet('hudUiEditor', uiEditorOn ? '1' : '0');
+                    applyUiEditor();
+                },
+            };
+            let capturingBind = null; // id of the bind currently waiting for a key
+
+            const bindStorageKey = (id) => 'hudBind_' + id;
+            const getBindKey = (id) => hudGet(bindStorageKey(id), '');
+            const keyLabel = (key) => key === ' ' ? 'Space' : (key.length === 1 ? key.toUpperCase() : key);
+
+            function renderBindBadges() {
+                doc.querySelectorAll('#gameHudOverlay .hud-keybind').forEach((badge) => {
+                    const id = badge.dataset.bind;
+                    if (capturingBind === id) {
+                        badge.textContent = '...';
+                        badge.classList.add('capturing');
+                        badge.classList.remove('empty');
+                        return;
+                    }
+                    badge.classList.remove('capturing');
+                    const key = getBindKey(id);
+                    if (key) { badge.textContent = keyLabel(key); badge.classList.remove('empty'); }
+                    else { badge.textContent = '--'; badge.classList.add('empty'); }
+                });
+            }
+
+            doc.querySelectorAll('#gameHudOverlay .hud-keybind').forEach((badge) => {
+                badge.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    capturingBind = (capturingBind === badge.dataset.bind) ? null : badge.dataset.bind;
+                    renderBindBadges();
+                });
+            });
+            renderBindBadges();
 
             // --- Open / close ---
             function toggleHud() { if (!canOpen()) return; overlay.classList.toggle('active'); }
@@ -1196,13 +1257,53 @@
             // whenever possible, to the game iframe's own window. Without this, key
             // presses that happen while the game has focus never reach the launcher.
             function hudKeyHandler(e) {
+                // 1) Capture mode: the next key becomes the bind for the chosen option.
+                if (capturingBind) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (e.key === 'Escape') { capturingBind = null; renderBindBadges(); return; }
+                    if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return; // ignore lone modifiers
+                    const id = capturingBind;
+                    // Avoid the same key controlling two options.
+                    Object.keys(bindActions).forEach((other) => {
+                        if (other !== id && getBindKey(other).toLowerCase() === e.key.toLowerCase()) {
+                            hudSet(bindStorageKey(other), '');
+                        }
+                    });
+                    hudSet(bindStorageKey(id), e.key);
+                    capturingBind = null;
+                    renderBindBadges();
+                    return;
+                }
+
+                // 2) Ctrl + U opens/closes the menu.
                 if (e.ctrlKey && (e.key === 'u' || e.key === 'U')) {
                     if (!canOpen()) return;
                     e.preventDefault();
                     overlay.classList.toggle('active');
-                } else if (e.key === 'Escape') {
+                    return;
+                }
+
+                // 3) Escape closes the FPS modal or the menu.
+                if (e.key === 'Escape') {
                     if (fpsModal.classList.contains('visible')) { fpsModal.classList.remove('visible'); return; }
                     if (overlay.classList.contains('active')) closeHud();
+                    return;
+                }
+
+                // 4) Configured single-key binds toggle their option on/off.
+                if (e.ctrlKey || e.altKey || e.metaKey) return;
+                const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
+                if (tag === 'input' || tag === 'textarea') return; // don't steal typing
+                const pressed = e.key.toLowerCase();
+                for (const id of Object.keys(bindActions)) {
+                    const k = getBindKey(id);
+                    if (k && k.toLowerCase() === pressed) {
+                        if (!canOpen()) return;
+                        e.preventDefault();
+                        bindActions[id]();
+                        return;
+                    }
                 }
             }
             win.addEventListener('keydown', hudKeyHandler);
