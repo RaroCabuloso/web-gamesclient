@@ -795,6 +795,7 @@
                 opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s; z-index: 2147483000;
                 overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
             #gameHudOverlay.active { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
+            #gameHudOverlay.moved { transform: none; }
             #gameHudOverlay * { box-sizing: border-box; margin: 0; padding: 0; }
             #gameHudOverlay .hud-sidebar { width: 70px; background: rgba(0,0,0,0.3);
                 border-right: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column;
@@ -806,9 +807,12 @@
                 background: rgba(255,255,255,0.1); color: #fff; }
             #gameHudOverlay .hud-sidebar-spacer { flex-grow: 1; }
             #gameHudOverlay .hud-content { flex: 1; padding: 24px; display: flex; flex-direction: column; overflow: hidden; }
-            #gameHudOverlay .hud-header { margin-bottom: 18px; display: flex; align-items: baseline; justify-content: space-between; }
-            #gameHudOverlay .hud-header h2 { color: #fff; font-weight: 500; font-size: 20px; }
-            #gameHudOverlay .hud-hint { color: #777; font-size: 12px; }
+            #gameHudOverlay .hud-header { margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between;
+                cursor: move; user-select: none; }
+            #gameHudOverlay .hud-header h2 { color: #fff; font-weight: 500; font-size: 20px; pointer-events: none; }
+            #gameHudOverlay .hud-hint { color: #777; font-size: 12px; pointer-events: none; }
+            #gameHudOverlay .hud-hint i { margin-right: 4px; }
+            #gameHudOverlay .hud-view { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
             #gameHudOverlay .hud-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
                 gap: 12px; overflow-y: auto; padding-right: 4px; align-content: start; }
             #gameHudOverlay .hud-card { background: rgba(40,40,40,0.6); border: 1px solid rgba(255,255,255,0.1);
@@ -820,44 +824,182 @@
             #gameHudOverlay .hud-card-icon { width: 32px; height: 32px; background: rgba(255,255,255,0.05);
                 border-radius: 6px; display: flex; justify-content: center; align-items: center; color: #fff; font-size: 14px; }
             #gameHudOverlay .hud-card-text { color: #fff; font-size: 14px; font-weight: 500; }
+            #gameHudOverlay .hud-card-right { display: flex; align-items: center; gap: 10px; }
+            #gameHudOverlay .hud-settings-btn { width: 26px; height: 26px; display: flex; align-items: center;
+                justify-content: center; border-radius: 5px; color: #a0a0a0; cursor: pointer; transition: 0.2s; }
+            #gameHudOverlay .hud-settings-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
             #gameHudOverlay .hud-toggle { width: 34px; height: 18px; background: rgba(255,255,255,0.2);
                 border-radius: 20px; position: relative; transition: 0.3s; flex-shrink: 0; }
             #gameHudOverlay .hud-toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px;
                 height: 14px; background: #fff; border-radius: 50%; transition: 0.3s; }
-            #gameHudOverlay .hud-card.active .hud-toggle { background: #4caf50; }
-            #gameHudOverlay .hud-card.active .hud-toggle::after { transform: translateX(16px); }
+            #gameHudOverlay .hud-card.active .hud-toggle, #gameHudOverlay .hud-toggle.on { background: #4caf50; }
+            #gameHudOverlay .hud-card.active .hud-toggle::after, #gameHudOverlay .hud-toggle.on::after { transform: translateX(16px); }
+            #gameHudOverlay .hud-note { color: #a0a0a0; font-size: 13px; line-height: 1.6; margin-top: 14px; }
+            #gameHudOverlay .hud-modal { position: absolute; inset: 0; background: rgba(0,0,0,0.6); display: flex;
+                align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.2s;
+                border-radius: 16px; }
+            #gameHudOverlay .hud-modal.visible { opacity: 1; pointer-events: auto; }
+            #gameHudOverlay .hud-modal-content { background: #252525; width: 320px; max-width: 80%; border-radius: 12px;
+                border: 1px solid rgba(255,255,255,0.1); padding: 18px; }
+            #gameHudOverlay .hud-modal-header { display: flex; justify-content: space-between; align-items: center;
+                border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 14px; }
+            #gameHudOverlay .hud-modal-header h3 { color: #fff; font-size: 16px; font-weight: 500; }
+            #gameHudOverlay .hud-modal-close { background: none; border: none; color: #a0a0a0; cursor: pointer; font-size: 16px; }
+            #gameHudOverlay .hud-modal-close:hover { color: #fff; }
+            #gameHudOverlay .hud-opt-row { display: flex; justify-content: space-between; align-items: center;
+                color: #fff; font-size: 14px; padding: 9px 0; }
+            #gameHudOverlay .hud-opt-col { padding: 9px 0; }
+            #gameHudOverlay .hud-opt-col label { display: block; color: #fff; font-size: 14px; margin-bottom: 6px; }
+            #gameHudOverlay input[type="range"] { width: 100%; accent-color: #4caf50; }
             #gameFpsCounter { position: fixed; top: 10px; left: 10px; z-index: 2147482000; background: rgba(0,0,0,0.55);
                 color: #4caf50; font-family: 'Consolas', 'Segoe UI', monospace; font-size: 14px; font-weight: 700;
                 padding: 4px 10px; border-radius: 6px; pointer-events: none; display: none; letter-spacing: 0.5px; }
+            #gameFpsCounter.no-bg { background: transparent; padding: 0; }
+            #gameFpsCounter.rgb { color: #ff0040; animation: hudHueRotate 4s linear infinite; }
+            .hud-movable.editing { pointer-events: auto !important; cursor: move;
+                outline: 2px dashed #4caf50; outline-offset: 3px; }
+            @keyframes hudHueRotate { to { filter: hue-rotate(360deg); } }
         `;
 
         const HUD_HTML = `
             <div id="gameHudOverlay">
                 <nav class="hud-sidebar">
-                    <div class="hud-sidebar-item active" data-action="geral" title="Geral"><i class="fa-solid fa-house"></i></div>
-                    <div class="hud-sidebar-item" data-action="config" title="Configurações"><i class="fa-solid fa-gear"></i></div>
-                    <div class="hud-sidebar-item" data-action="info" title="Informações"><i class="fa-solid fa-circle-info"></i></div>
+                    <div class="hud-sidebar-item active" data-view="geral" title="Geral"><i class="fa-solid fa-house"></i></div>
+                    <div class="hud-sidebar-item" data-view="config" title="Configurações"><i class="fa-solid fa-gear"></i></div>
+                    <div class="hud-sidebar-item" data-view="info" title="Informações"><i class="fa-solid fa-circle-info"></i></div>
                     <div class="hud-sidebar-spacer"></div>
                     <div class="hud-sidebar-item" data-action="close" title="Fechar (Esc)"><i class="fa-solid fa-power-off"></i></div>
                 </nav>
                 <main class="hud-content">
-                    <div class="hud-header">
-                        <h2>Configurações In-Game</h2>
-                        <span class="hud-hint">Ctrl + U para abrir/fechar</span>
+                    <div class="hud-header" id="hudHeader">
+                        <h2 id="hudTitle">Configurações In-Game</h2>
+                        <span class="hud-hint"><i class="fa-solid fa-up-down-left-right"></i>arraste • Ctrl + U</span>
                     </div>
-                    <div class="hud-grid">
-                        <div class="hud-card" id="hudFpsCard">
-                            <div class="hud-card-left">
-                                <div class="hud-card-icon"><i class="fa-solid fa-gauge-high"></i></div>
-                                <span class="hud-card-text">Show FPS</span>
+
+                    <div class="hud-view" id="hudViewGeral">
+                        <div class="hud-grid">
+                            <div class="hud-card" id="hudFpsCard">
+                                <div class="hud-card-left">
+                                    <div class="hud-card-icon"><i class="fa-solid fa-gauge-high"></i></div>
+                                    <span class="hud-card-text">Show FPS</span>
+                                </div>
+                                <div class="hud-card-right">
+                                    <div class="hud-settings-btn" id="hudFpsSettingsBtn" title="Opções"><i class="fa-solid fa-gear"></i></div>
+                                    <div class="hud-toggle"></div>
+                                </div>
                             </div>
-                            <div class="hud-card-right"><div class="hud-toggle"></div></div>
                         </div>
                     </div>
+
+                    <div class="hud-view" id="hudViewConfig" style="display:none;">
+                        <div class="hud-grid">
+                            <div class="hud-card" id="hudUiEditorCard">
+                                <div class="hud-card-left">
+                                    <div class="hud-card-icon"><i class="fa-solid fa-arrows-up-down-left-right"></i></div>
+                                    <span class="hud-card-text">UI Editor</span>
+                                </div>
+                                <div class="hud-card-right"><div class="hud-toggle"></div></div>
+                            </div>
+                        </div>
+                        <p class="hud-note">Com o <strong>UI Editor</strong> ligado, arraste os elementos criados pelo client (ex.: o contador de FPS) para reposicioná-los. A posição é salva automaticamente.</p>
+                    </div>
+
+                    <div class="hud-view" id="hudViewInfo" style="display:none;">
+                        <p class="hud-note">Configurações In-Game.<br>Pressione <strong>Ctrl + U</strong> para abrir/fechar o menu.<br>Arraste a barra de título para mover o menu.</p>
+                    </div>
                 </main>
+
+                <div class="hud-modal" id="hudFpsModal">
+                    <div class="hud-modal-content">
+                        <div class="hud-modal-header">
+                            <h3>Opções do FPS</h3>
+                            <button class="hud-modal-close" id="hudFpsModalClose"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                        <div class="hud-modal-body">
+                            <div class="hud-opt-row">
+                                <span>Fundo</span>
+                                <div class="hud-toggle" id="hudFpsBgToggle"></div>
+                            </div>
+                            <div class="hud-opt-col">
+                                <label>Transparência</label>
+                                <input type="range" min="20" max="100" value="100" id="hudFpsOpacity">
+                            </div>
+                            <div class="hud-opt-row">
+                                <span>RGB Mode</span>
+                                <div class="hud-toggle" id="hudFpsRgbToggle"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div id="gameFpsCounter">0 FPS</div>
+            <div id="gameFpsCounter" class="hud-movable">0 FPS</div>
         `;
+
+        // localStorage helpers that never throw (pop-up windows may restrict storage).
+        function hudGet(key, fallback) {
+            try { const v = localStorage.getItem(key); return v === null ? fallback : v; } catch (e) { return fallback; }
+        }
+        function hudSet(key, value) {
+            try { localStorage.setItem(key, value); } catch (e) {}
+        }
+
+        // Makes an element draggable by a handle. Persists position under storageKey.
+        // isEnabled() gates whether a drag may start (used for UI-editor movable elements).
+        function hudMakeDraggable(win, el, handle, storageKey, isEnabled) {
+            const doc = win.document;
+            let dragging = false, offX = 0, offY = 0, moved = false;
+
+            handle.addEventListener('mousedown', (e) => {
+                if (isEnabled && !isEnabled()) return;
+                if (e.button !== 0) return;
+                const r = el.getBoundingClientRect();
+                el.style.left = r.left + 'px';
+                el.style.top = r.top + 'px';
+                el.style.right = 'auto';
+                el.style.bottom = 'auto';
+                el.style.margin = '0';
+                el.classList.add('moved');
+                offX = e.clientX - r.left;
+                offY = e.clientY - r.top;
+                dragging = true;
+                moved = false;
+                e.preventDefault();
+            });
+
+            win.addEventListener('mousemove', (e) => {
+                if (!dragging) return;
+                moved = true;
+                const w = el.offsetWidth, h = el.offsetHeight;
+                let nx = Math.max(0, Math.min(e.clientX - offX, win.innerWidth - w));
+                let ny = Math.max(0, Math.min(e.clientY - offY, win.innerHeight - h));
+                el.style.left = nx + 'px';
+                el.style.top = ny + 'px';
+            });
+
+            win.addEventListener('mouseup', () => {
+                if (!dragging) return;
+                dragging = false;
+                if (moved && storageKey) {
+                    hudSet(storageKey, JSON.stringify({ left: el.style.left, top: el.style.top }));
+                }
+            });
+        }
+
+        function hudRestorePos(el, storageKey) {
+            try {
+                const raw = hudGet(storageKey, null);
+                if (!raw) return;
+                const p = JSON.parse(raw);
+                if (p && p.left) {
+                    el.style.left = p.left;
+                    el.style.top = p.top;
+                    el.style.right = 'auto';
+                    el.style.bottom = 'auto';
+                    el.style.margin = '0';
+                    el.classList.add('moved');
+                }
+            } catch (e) {}
+        }
 
         // Mounts the HUD into the given window (launcher or pop-up) and wires its behaviour.
         function mountGameHud(win, options) {
@@ -876,17 +1018,27 @@
             const overlay = doc.getElementById('gameHudOverlay');
             const fpsCard = doc.getElementById('hudFpsCard');
             const fpsCounter = doc.getElementById('gameFpsCounter');
+            const header = doc.getElementById('hudHeader');
+            const uiEditorCard = doc.getElementById('hudUiEditorCard');
+            const fpsModal = doc.getElementById('hudFpsModal');
+            const fpsSettingsBtn = doc.getElementById('hudFpsSettingsBtn');
+            const fpsModalClose = doc.getElementById('hudFpsModalClose');
+            const fpsBgToggle = doc.getElementById('hudFpsBgToggle');
+            const fpsRgbToggle = doc.getElementById('hudFpsRgbToggle');
+            const fpsOpacity = doc.getElementById('hudFpsOpacity');
 
             const canOpen = options.canOpen || (() => true);
             const fpsActive = options.fpsActive || (() => true);
 
-            let fpsEnabled = false;
-            try { fpsEnabled = localStorage.getItem('hudShowFps') === '1'; } catch (e) {}
+            // --- Persisted state ---
+            let fpsEnabled = hudGet('hudShowFps', '0') === '1';
+            let fpsBg = hudGet('hudFpsBg', '1') === '1';
+            let fpsRgb = hudGet('hudFpsRgb', '0') === '1';
+            let fpsOpacityVal = parseInt(hudGet('hudFpsOpacity', '100'), 10) || 100;
+            let uiEditorOn = hudGet('hudUiEditor', '0') === '1';
 
-            let rafId = null;
-            let frames = 0;
-            let lastTime = win.performance.now();
-
+            // --- FPS counter loop ---
+            let rafId = null, frames = 0, lastTime = win.performance.now();
             function fpsLoop(now) {
                 frames++;
                 if (now - lastTime >= 1000) {
@@ -897,9 +1049,19 @@
                 rafId = win.requestAnimationFrame(fpsLoop);
             }
 
+            function applyFpsStyle() {
+                fpsCounter.classList.toggle('no-bg', !fpsBg);
+                fpsCounter.classList.toggle('rgb', fpsRgb);
+                fpsCounter.style.opacity = (fpsOpacityVal / 100).toString();
+                fpsBgToggle.classList.toggle('on', fpsBg);
+                fpsRgbToggle.classList.toggle('on', fpsRgb);
+                fpsOpacity.value = fpsOpacityVal;
+            }
+
             function applyFps() {
                 fpsCard.classList.toggle('active', fpsEnabled);
                 const show = fpsEnabled && fpsActive();
+                // keep it interactive (display none would block dragging) only when shown
                 fpsCounter.style.display = show ? 'block' : 'none';
                 if (show && rafId === null) {
                     frames = 0;
@@ -911,12 +1073,51 @@
                 }
             }
 
-            fpsCard.addEventListener('click', () => {
+            function applyUiEditor() {
+                uiEditorCard.classList.toggle('active', uiEditorOn);
+                doc.querySelectorAll('.hud-movable').forEach((el) => el.classList.toggle('editing', uiEditorOn));
+            }
+
+            // --- Show FPS card toggle (ignore clicks on the gear) ---
+            fpsCard.addEventListener('click', (e) => {
+                if (e.target.closest('#hudFpsSettingsBtn')) return;
                 fpsEnabled = !fpsEnabled;
-                try { localStorage.setItem('hudShowFps', fpsEnabled ? '1' : '0'); } catch (e) {}
+                hudSet('hudShowFps', fpsEnabled ? '1' : '0');
                 applyFps();
             });
 
+            // --- FPS options modal ---
+            fpsSettingsBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                fpsModal.classList.add('visible');
+            });
+            fpsModalClose.addEventListener('click', () => fpsModal.classList.remove('visible'));
+            fpsModal.addEventListener('click', (e) => { if (e.target === fpsModal) fpsModal.classList.remove('visible'); });
+
+            fpsBgToggle.addEventListener('click', () => {
+                fpsBg = !fpsBg;
+                hudSet('hudFpsBg', fpsBg ? '1' : '0');
+                applyFpsStyle();
+            });
+            fpsRgbToggle.addEventListener('click', () => {
+                fpsRgb = !fpsRgb;
+                hudSet('hudFpsRgb', fpsRgb ? '1' : '0');
+                applyFpsStyle();
+            });
+            fpsOpacity.addEventListener('input', () => {
+                fpsOpacityVal = parseInt(fpsOpacity.value, 10);
+                hudSet('hudFpsOpacity', String(fpsOpacityVal));
+                applyFpsStyle();
+            });
+
+            // --- UI Editor toggle ---
+            uiEditorCard.addEventListener('click', () => {
+                uiEditorOn = !uiEditorOn;
+                hudSet('hudUiEditor', uiEditorOn ? '1' : '0');
+                applyUiEditor();
+            });
+
+            // --- Open / close ---
             function toggleHud() { overlay.classList.toggle('active'); }
             function closeHud() { overlay.classList.remove('active'); }
 
@@ -925,22 +1126,42 @@
                     if (!canOpen()) return;
                     e.preventDefault();
                     toggleHud();
-                } else if (e.key === 'Escape' && overlay.classList.contains('active')) {
-                    closeHud();
+                } else if (e.key === 'Escape') {
+                    if (fpsModal.classList.contains('visible')) { fpsModal.classList.remove('visible'); return; }
+                    if (overlay.classList.contains('active')) closeHud();
                 }
             });
 
+            // --- Sidebar view switching ---
+            const views = { geral: 'hudViewGeral', config: 'hudViewConfig', info: 'hudViewInfo' };
+            const titles = { geral: 'Configurações In-Game', config: 'Configurações', info: 'Informações' };
             doc.querySelectorAll('#gameHudOverlay .hud-sidebar-item').forEach((item) => {
                 item.addEventListener('click', () => {
                     if (item.dataset.action === 'close') { closeHud(); return; }
-                    doc.querySelectorAll('#gameHudOverlay .hud-sidebar-item')
-                        .forEach((i) => i.classList.remove('active'));
+                    const view = item.dataset.view;
+                    if (!view) return;
+                    doc.querySelectorAll('#gameHudOverlay .hud-sidebar-item').forEach((i) => i.classList.remove('active'));
                     item.classList.add('active');
+                    Object.keys(views).forEach((k) => {
+                        const el = doc.getElementById(views[k]);
+                        if (el) el.style.display = (k === view) ? 'flex' : 'none';
+                    });
+                    const titleEl = doc.getElementById('hudTitle');
+                    if (titleEl) titleEl.textContent = titles[view] || titles.geral;
                 });
             });
 
+            // --- Dragging: menu by header (always), FPS counter when UI editor is on ---
+            hudMakeDraggable(win, overlay, header, 'hudMenuPos', null);
+            hudMakeDraggable(win, fpsCounter, fpsCounter, 'hudFpsPos', () => uiEditorOn);
+            hudRestorePos(overlay, 'hudMenuPos');
+            hudRestorePos(fpsCounter, 'hudFpsPos');
+
             win.__closeGameHud = closeHud;
             win.__refreshGameHud = applyFps;
+
+            applyFpsStyle();
+            applyUiEditor();
             applyFps();
         }
 
