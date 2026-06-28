@@ -1,1 +1,875 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Game Launcher</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1a1a1a; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #444; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555; 
+        }
+
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+
+        .game-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+        }
+
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(5px);
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        .float-anim {
+            animation: float 4s ease-in-out infinite;
+        }
+
+        /* Theme Variables */
+        :root {
+            --accent-color: #f97316;
+            --accent-hover: #ea580c;
+        }
+
+        .theme-orange { --accent-color: #f97316; --accent-hover: #ea580c; }
+        .theme-blue { --accent-color: #3b82f6; --accent-hover: #2563eb; }
+        .theme-purple { --accent-color: #a855f7; --accent-hover: #9333ea; }
+        .theme-green { --accent-color: #22c55e; --accent-hover: #16a34a; }
+        .theme-red { --accent-color: #ef4444; --accent-hover: #dc2626; }
+        .theme-pink { --accent-color: #ec4899; --accent-hover: #db2777; }
+        .theme-cyan { --accent-color: #06b6d4; --accent-hover: #0891b2; }
+        .theme-yellow { --accent-color: #eab308; --accent-hover: #ca8a04; }
+        .theme-indigo { --accent-color: #6366f1; --accent-hover: #4f46e5; }
+
+        .bg-accent { background-color: var(--accent-color); }
+        .hover\:bg-accent:hover { background-color: var(--accent-hover); }
+        .text-accent { color: var(--accent-color); }
+        .border-accent { border-color: var(--accent-color); }
+        .ring-accent { --tw-ring-color: var(--accent-color); }
+        .shadow-accent { --tw-shadow-color: var(--accent-color); }
+
+        /* Background Styles */
+        body.bg-none {
+            background: #121212 !important;
+        }
+        body.bg-cyber {
+            background: url('https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&q=80&w=1920') no-repeat center center fixed;
+            background-size: cover;
+        }
+        body.bg-space {
+            background: url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=1920') no-repeat center center fixed;
+            background-size: cover;
+        }
+        body.bg-nature {
+            background: url('https://images.unsplash.com/photo-1472214103451-9374bd1c798e?auto=format&fit=crop&q=80&w=1920') no-repeat center center fixed;
+            background-size: cover;
+        }
+        body.bg-abstract {
+            background: url('https://images.unsplash.com/photo-1550684848-fac1c5b4e853?auto=format&fit=crop&q=80&w=1920') no-repeat center center fixed;
+            background-size: cover;
+        }
+        body.bg-dark {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%) fixed;
+        }
+        body.bg-gradient {
+            background: linear-gradient(45deg, #121212, #1a1a2e, #16213e) fixed;
+        }
+        body.bg-custom {
+            background-size: cover !important;
+            background-position: center !important;
+            background-repeat: no-repeat !important;
+            background-attachment: fixed !important;
+        }
+
+        /* Active Nav Item */
+        .nav-active {
+            background: rgba(255, 255, 255, 0.1);
+            border-left: 3px solid var(--accent-color);
+            color: white;
+        }
+
+        /* Content fade animation */
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col overflow-hidden theme-orange bg-none">
+
+    <!-- Main Layout -->
+    <div class="flex flex-1 h-full overflow-hidden relative">
+        
+        <!-- Sidebar -->
+        <aside class="w-64 bg-[#1a1a1a]/95 backdrop-blur flex flex-col border-r border-[#2a2a2a] z-20">
+            <div class="p-6 flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-accent flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-accent/30">
+                    <i class="fas fa-gamepad"></i>
+                </div>
+                <span class="font-bold text-lg tracking-wide">Launcher</span>
+            </div>
+
+            <nav class="flex-1 px-3 space-y-1 overflow-y-auto mt-4">
+                <a href="#" id="nav-home" onclick="switchView('home')" class="nav-item flex items-center gap-3 px-4 py-3 text-gray-300 hover:bg-[#252525] rounded-lg transition-all group">
+                    <i class="fas fa-home w-5 text-center group-hover:text-accent"></i>
+                    <span class="font-medium">Início</span>
+                </a>
+                <a href="#" id="nav-library" onclick="switchView('library')" class="nav-item flex items-center gap-3 px-4 py-3 text-gray-300 hover:bg-[#252525] rounded-lg transition-all group">
+                    <i class="fas fa-th-large w-5 text-center group-hover:text-accent"></i>
+                    <span class="font-medium">Biblioteca</span>
+                </a>
+                <a href="#" id="nav-settings" onclick="switchView('settings')" class="nav-item flex items-center gap-3 px-4 py-3 text-gray-300 hover:bg-[#252525] rounded-lg transition-all group">
+                    <i class="fas fa-cog w-5 text-center group-hover:text-accent"></i>
+                    <span class="font-medium">Configurações</span>
+                </a>
+            </nav>
+
+            <div class="p-4 mt-auto">
+                <div class="bg-[#1e1e1e] rounded-lg p-4 border border-[#2a2a2a]">
+                    <p class="text-xs text-gray-500 mb-1">Jogos na biblioteca</p>
+                    <p id="libraryCount" class="text-2xl font-bold text-accent">0</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 flex flex-col relative">
+            
+            <!-- Header -->
+            <header class="h-20 border-b border-[#2a2a2a] flex items-center justify-between px-8 bg-[#121212]/80 backdrop-blur z-10">
+                <div class="flex items-center gap-6">
+                    <h1 id="pageTitle" class="text-2xl font-light text-white">Início</h1>
+                    <div class="hidden md:flex bg-[#1e1e1e] rounded-full px-4 py-2 items-center border border-[#333] focus-within:border-accent transition-colors">
+                        <i class="fas fa-search text-gray-500 mr-2"></i>
+                        <input type="text" id="searchInput" onkeyup="filterGames()" placeholder="Pesquisar jogos..." class="bg-transparent border-none outline-none text-sm text-white w-64 placeholder-gray-500">
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-4">
+                    <button onclick="openAddModal()" class="bg-accent hover:bg-accent-hover text-white px-5 py-2.5 rounded-lg font-medium shadow-lg transition-all active:scale-95 flex items-center gap-2">
+                        <i class="fas fa-plus"></i>
+                        Adicionar Jogo
+                    </button>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div id="contentArea" class="flex-1 overflow-y-auto px-8 pb-8">
+                <!-- Dynamic content will be rendered here -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Add Game Modal -->
+    <div id="addModal" class="fixed inset-0 z-50 hidden modal-overlay flex items-center justify-center">
+        <div class="bg-[#1e1e1e] w-full max-w-lg rounded-xl shadow-2xl border border-[#333] overflow-hidden">
+            <div class="px-6 py-4 border-b border-[#333] flex justify-between items-center bg-[#252525]">
+                <h3 class="text-lg font-semibold text-white">Adicionar Novo Jogo</h3>
+                <button onclick="closeAddModal()" class="text-gray-400 hover:text-white transition-colors">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="p-6 space-y-6">
+                <div class="flex border-b border-[#333]">
+                    <button id="tabUrl" onclick="switchTab('url')" class="flex-1 pb-3 text-accent border-b-2 border-accent font-medium text-sm transition-colors">
+                        Link (URL)
+                    </button>
+                    <button id="tabFile" onclick="switchTab('file')" class="flex-1 pb-3 text-gray-400 hover:text-white font-medium text-sm transition-colors">
+                        Arquivo HTML
+                    </button>
+                </div>
+
+                <div id="formUrl" class="space-y-4">
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">Nome do Jogo</label>
+                        <input type="text" id="gameNameUrl" class="w-full bg-[#121212] border border-[#333] rounded-lg px-4 py-2 text-white focus:border-accent focus:outline-none transition-colors" placeholder="Ex: Super Mario Web">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">URL do Jogo</label>
+                        <input type="url" id="gameUrl" class="w-full bg-[#121212] border border-[#333] rounded-lg px-4 py-2 text-white focus:border-accent focus:outline-none transition-colors" placeholder="https://exemplo.com/jogo">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">URL da Imagem de Capa (Opcional)</label>
+                        <input type="url" id="gameCoverUrl" class="w-full bg-[#121212] border border-[#333] rounded-lg px-4 py-2 text-white focus:border-accent focus:outline-none transition-colors" placeholder="Deixe em branco para buscar automático">
+                    </div>
+                </div>
+
+                <div id="formFile" class="hidden space-y-4">
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">Nome do Jogo</label>
+                        <input type="text" id="gameNameFile" class="w-full bg-[#121212] border border-[#333] rounded-lg px-4 py-2 text-white focus:border-accent focus:outline-none transition-colors" placeholder="Ex: Meu Jogo Local">
+                    </div>
+                    <div class="border-2 border-dashed border-[#333] rounded-lg p-8 text-center hover:border-accent/50 transition-colors bg-[#121212]">
+                        <i class="fas fa-file-code text-3xl text-gray-500 mb-3"></i>
+                        <p class="text-gray-400 text-sm mb-2">Arraste seu arquivo .html aqui</p>
+                        <input type="file" id="gameFileInput" accept=".html" class="hidden">
+                        <button onclick="document.getElementById('gameFileInput').click()" class="text-accent text-sm font-medium hover:underline">Selecionar Arquivo</button>
+                        <p id="fileNameDisplay" class="text-xs text-gray-500 mt-2"></p>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">URL da Imagem de Capa (Opcional)</label>
+                        <input type="url" id="gameCoverFile" class="w-full bg-[#121212] border border-[#333] rounded-lg px-4 py-2 text-white focus:border-accent focus:outline-none transition-colors" placeholder="Deixe em branco para buscar automático">
+                    </div>
+                </div>
+
+                <button onclick="submitGame()" class="w-full bg-accent hover:bg-accent-hover text-white py-3 rounded-lg font-bold shadow-lg transition-all active:scale-95">
+                    Adicionar à Biblioteca
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings View Content -->
+    <div id="settingsContent" class="hidden">
+        <div class="max-w-4xl mx-auto space-y-8">
+            <!-- Theme Section -->
+            <div class="bg-[#1e1e1e] rounded-xl border border-[#2a2a2a] overflow-hidden">
+                <div class="px-6 py-4 border-b border-[#2a2a2a] bg-[#252525]">
+                    <h3 class="text-lg font-semibold text-white">Aparência</h3>
+                </div>
+                <div class="p-6 space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-3">Cor de Destaque</label>
+                        <div class="flex flex-wrap gap-3">
+                            <button onclick="setTheme('orange')" class="theme-btn w-10 h-10 rounded-full bg-orange-500 ring-2 ring-offset-2 ring-offset-[#1e1e1e] ring-orange-500 transition-all hover:scale-110" data-theme="orange"></button>
+                            <button onclick="setTheme('blue')" class="theme-btn w-10 h-10 rounded-full bg-blue-500 ring-2 ring-offset-2 ring-offset-[#1e1e1e] ring-transparent transition-all hover:scale-110" data-theme="blue"></button>
+                            <button onclick="setTheme('purple')" class="theme-btn w-10 h-10 rounded-full bg-purple-500 ring-2 ring-offset-2 ring-offset-[#1e1e1e] ring-transparent transition-all hover:scale-110" data-theme="purple"></button>
+                            <button onclick="setTheme('green')" class="theme-btn w-10 h-10 rounded-full bg-green-500 ring-2 ring-offset-2 ring-offset-[#1e1e1e] ring-transparent transition-all hover:scale-110" data-theme="green"></button>
+                            <button onclick="setTheme('red')" class="theme-btn w-10 h-10 rounded-full bg-red-500 ring-2 ring-offset-2 ring-offset-[#1e1e1e] ring-transparent transition-all hover:scale-110" data-theme="red"></button>
+                            <button onclick="setTheme('pink')" class="theme-btn w-10 h-10 rounded-full bg-pink-500 ring-2 ring-offset-2 ring-offset-[#1e1e1e] ring-transparent transition-all hover:scale-110" data-theme="pink"></button>
+                            <button onclick="setTheme('cyan')" class="theme-btn w-10 h-10 rounded-full bg-cyan-500 ring-2 ring-offset-2 ring-offset-[#1e1e1e] ring-transparent transition-all hover:scale-110" data-theme="cyan"></button>
+                            <button onclick="setTheme('yellow')" class="theme-btn w-10 h-10 rounded-full bg-yellow-500 ring-2 ring-offset-2 ring-offset-[#1e1e1e] ring-transparent transition-all hover:scale-110" data-theme="yellow"></button>
+                            <button onclick="setTheme('indigo')" class="theme-btn w-10 h-10 rounded-full bg-indigo-500 ring-2 ring-offset-2 ring-offset-[#1e1e1e] ring-transparent transition-all hover:scale-110" data-theme="indigo"></button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-3">Imagem de Fundo</label>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                            <button onclick="setBackground('none')" class="bg-btn h-24 bg-[#252525] rounded-lg border-2 border-[#333] flex flex-col items-center justify-center text-xs text-gray-400 hover:border-gray-500 transition-all" data-bg="none">
+                                <i class="fas fa-slash text-xl mb-2"></i>
+                                <span>Sem Fundo</span>
+                            </button>
+                            <button onclick="setBackground('cyber')" class="bg-btn h-24 bg-cover bg-center rounded-lg border-2 border-[#333] hover:border-gray-500 transition-all" data-bg="cyber" style="background-image: url('https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&q=80&w=300');"></button>
+                            <button onclick="setBackground('space')" class="bg-btn h-24 bg-cover bg-center rounded-lg border-2 border-[#333] hover:border-gray-500 transition-all" data-bg="space" style="background-image: url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=300');"></button>
+                            <button onclick="setBackground('nature')" class="bg-btn h-24 bg-cover bg-center rounded-lg border-2 border-[#333] hover:border-gray-500 transition-all" data-bg="nature" style="background-image: url('https://images.unsplash.com/photo-1472214103451-9374bd1c798e?auto=format&fit=crop&q=80&w=300');"></button>
+                            <button onclick="setBackground('abstract')" class="bg-btn h-24 bg-cover bg-center rounded-lg border-2 border-[#333] hover:border-gray-500 transition-all" data-bg="abstract" style="background-image: url('https://images.unsplash.com/photo-1550684848-fac1c5b4e853?auto=format&fit=crop&q=80&w=300');"></button>
+                            <button onclick="setBackground('dark')" class="bg-btn h-24 bg-gradient-to-br from-[#1a1a2e] to-[#0f3460] rounded-lg border-2 border-[#333] hover:border-gray-500 transition-all" data-bg="dark"></button>
+                            <button onclick="setBackground('gradient')" class="bg-btn h-24 bg-gradient-to-br from-[#121212] via-[#1a1a2e] to-[#16213e] rounded-lg border-2 border-[#333] hover:border-gray-500 transition-all" data-bg="gradient"></button>
+                        </div>
+                        
+                        <!-- Custom URL Background -->
+                        <div class="bg-[#121212] rounded-lg border border-[#333] p-4">
+                            <label class="block text-sm text-gray-400 mb-2">Papel de Parede Personalizado (URL)</label>
+                            <div class="flex gap-2">
+                                <input type="url" id="customBgUrl" class="flex-1 bg-[#1a1a1a] border border-[#333] rounded-lg px-4 py-2 text-white text-sm focus:border-accent focus:outline-none" placeholder="https://exemplo.com/imagem.jpg">
+                                <button onclick="setCustomBackground()" class="bg-accent hover:bg-accent-hover text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                                    Aplicar
+                                </button>
+                            </div>
+                            <button onclick="clearCustomBackground()" class="text-xs text-gray-500 hover:text-gray-300 mt-2">
+                                <i class="fas fa-trash mr-1"></i> Remover papel de parede personalizado
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- About Section -->
+            <div class="bg-[#1e1e1e] rounded-xl border border-[#2a2a2a] overflow-hidden">
+                <div class="px-6 py-4 border-b border-[#2a2a2a] bg-[#252525]">
+                    <h3 class="text-lg font-semibold text-white">Sobre</h3>
+                </div>
+                <div class="p-6">
+                    <p class="text-gray-400 text-sm">Web Game Launcher v1.0</p>
+                    <p class="text-gray-500 text-xs mt-2">Um launcher simples para jogos web HTML5. Adicione jogos via URL ou arquivo HTML local.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Player Modal -->
+    <div id="playerModal" class="fixed inset-0 z-[60] hidden bg-black flex flex-col">
+        <div class="h-14 bg-[#1a1a1a] flex items-center justify-between px-4 border-b border-[#333]">
+            <div class="flex items-center gap-3">
+                <button onclick="closePlayer()" class="text-gray-400 hover:text-white transition-colors p-2 hover:bg-[#333] rounded">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+                <span id="playerTitle" class="font-medium text-white truncate max-w-xs">Jogando...</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="openInNewWindow()" class="text-gray-400 hover:text-white px-3 py-2 rounded hover:bg-[#333] text-sm flex items-center gap-2">
+                    <i class="fas fa-external-link-alt"></i> <span class="hidden md:inline">Nova Janela</span>
+                </button>
+                <button onclick="toggleFullscreen()" class="text-gray-400 hover:text-white px-3 py-2 rounded hover:bg-[#333]">
+                    <i class="fas fa-expand"></i>
+                </button>
+                <button onclick="closePlayer()" class="text-red-500 hover:text-red-400 font-bold px-3 py-2 rounded hover:bg-[#333] ml-2">
+                    <i class="fas fa-times"></i> Sair
+                </button>
+            </div>
+        </div>
+        <div class="flex-1 relative bg-black">
+            <iframe id="gameFrame" class="w-full h-full border-none" sandbox="allow-scripts allow-same-origin allow-pointer-lock allow-forms allow-popups"></iframe>
+            <div id="loadingOverlay" class="absolute inset-0 flex items-center justify-center bg-black z-10">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- State ---
+        let currentView = 'home';
+        let currentTab = 'url';
+        let selectedFileContent = null;
+        let currentGameSrc = '';
+
+        // Default games for Home view
+        const defaultGames = [
+            { id: 'd1', name: "2048", type: "url", src: "https://play2048.co/", cover: "https://images.unsplash.com/photo-1614294149010-950b698f72c0?auto=format&fit=crop&q=80&w=600" },
+            { id: 'd2', name: "Hextris", type: "url", src: "https://hextris.io/", cover: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=600" },
+            { id: 'd3', name: "Pacman", type: "url", src: "https://freepacman.org/", cover: "https://images.unsplash.com/photo-1551103782-8ab07afd45c1?auto=format&fit=crop&q=80&w=600" },
+            { id: 'd4', name: "A Dark Room", type: "url", src: "https://adarkroom.doublespeakgames.com/", cover: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&q=80&w=600" },
+            { id: 'd5', name: "Chess.com", type: "url", src: "https://www.chess.com/play/computer", cover: "https://images.unsplash.com/photo-1586165368502-1bad197a6461?auto=format&fit=crop&q=80&w=600" },
+            { id: 'd6', name: "Solitaire", type: "url", src: "https://worldofsolitaire.com/", cover: "https://images.unsplash.com/photo-1605806616949-1e87b487bc2a?auto=format&fit=crop&q=80&w=600" }
+        ];
+
+        // User library games
+        let userGames = [];
+
+        // --- Init ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // Load saved games from localStorage
+            const saved = localStorage.getItem('userGames');
+            if (saved) {
+                userGames = JSON.parse(saved);
+            }
+            
+            // Load saved preferences
+            loadPreferences();
+            
+            switchView('home');
+            
+            document.getElementById('gameFileInput').addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    document.getElementById('fileNameDisplay').textContent = file.name;
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        selectedFileContent = e.target.result;
+                    };
+                    reader.readAsText(file);
+                }
+            });
+        });
+
+        // --- View Switching ---
+        function switchView(view) {
+            currentView = view;
+            
+            // Update nav styling safely
+            document.querySelectorAll('.nav-item').forEach(el => {
+                if (el) {
+                    el.classList.remove('nav-active');
+                    const span = el.querySelector('span');
+                    if (span) span.classList.remove('text-white');
+                }
+            });
+            
+            const activeNav = document.getElementById(`nav-${view}`);
+            if (activeNav) {
+                activeNav.classList.add('nav-active');
+                const span = activeNav.querySelector('span');
+                if (span) span.classList.add('text-white');
+            }
+
+            const contentArea = document.getElementById('contentArea');
+            const settingsContent = document.getElementById('settingsContent');
+            const pageTitle = document.getElementById('pageTitle');
+
+            if (!contentArea || !pageTitle) return;
+
+            // Hide settings content
+            if (settingsContent) {
+                settingsContent.classList.add('hidden');
+            }
+
+            // Clear content area
+            contentArea.innerHTML = '';
+
+            if (view === 'home') {
+                pageTitle.textContent = 'Início';
+                contentArea.appendChild(renderGameSection('Jogos em Destaque', defaultGames, false));
+            } else if (view === 'library') {
+                pageTitle.textContent = 'Biblioteca';
+                if (userGames.length === 0) {
+                    contentArea.innerHTML = renderEmptyLibrary();
+                } else {
+                    contentArea.appendChild(renderGameSection('Meus Jogos', userGames, true));
+                }
+                const countEl = document.getElementById('libraryCount');
+                if (countEl) countEl.textContent = userGames.length;
+            } else if (view === 'settings') {
+                pageTitle.textContent = 'Configurações';
+                if (settingsContent) {
+                    settingsContent.classList.remove('hidden');
+                    contentArea.appendChild(settingsContent);
+                }
+            }
+
+            // Add fade animation
+            contentArea.classList.add('fade-in');
+            setTimeout(() => contentArea.classList.remove('fade-in'), 300);
+        }
+
+        function renderGameSection(title, games, isLibrary) {
+            const section = document.createElement('div');
+            section.className = 'fade-in';
+            
+            const header = document.createElement('div');
+            header.className = 'px-0 py-4 flex items-center justify-between';
+            header.innerHTML = `
+                <h2 class="text-xl font-semibold text-white">${title}</h2>
+                <span class="text-sm text-gray-500">${games.length} jogo${games.length !== 1 ? 's' : ''}</span>
+            `;
+            section.appendChild(header);
+
+            const grid = document.createElement('div');
+            grid.className = 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6';
+            grid.id = 'gameGrid';
+
+            games.forEach(game => {
+                const card = createGameCard(game, isLibrary);
+                grid.appendChild(card);
+            });
+
+            section.appendChild(grid);
+            return section;
+        }
+
+        function createGameCard(game, isLibrary) {
+            const card = document.createElement('div');
+            card.className = 'game-card group relative bg-[#1e1e1e] rounded-xl overflow-hidden shadow-lg cursor-pointer border border-[#2a2a2a] hover:border-accent/50 transition-all duration-300';
+            card.onclick = () => launchGame(game);
+
+            const coverStyle = game.cover ? `background-image: url('${game.cover}'); background-size: cover; background-position: center;` : 'background: linear-gradient(45deg, #2a2a2a, #333);';
+
+            card.innerHTML = `
+                <div class="aspect-[3/4] w-full relative overflow-hidden">
+                    <div class="absolute inset-0" style="${coverStyle}"></div>
+                    <div class="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80"></div>
+                    
+                    <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+                        <div class="w-12 h-12 rounded-full bg-accent flex items-center justify-center text-white transform scale-0 group-hover:scale-100 transition-transform duration-300 shadow-lg">
+                            <i class="fas fa-play ml-1"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="absolute top-2 right-2 flex gap-1">
+                        ${game.type === 'file' ? '<span class="bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">Local</span>' : ''}
+                    </div>
+                </div>
+                
+                <div class="p-4">
+                    <h3 class="font-bold text-white truncate text-lg mb-1">${game.name}</h3>
+                    <div class="flex items-center justify-between text-xs text-gray-500">
+                        <span class="flex items-center gap-1"><i class="fas fa-hdd"></i> ${game.type === 'file' ? 'Arquivo' : 'Web'}</span>
+                        ${isLibrary ? `<button onclick="event.stopPropagation(); deleteGame(${game.id})" class="text-red-500 hover:text-red-400"><i class="fas fa-trash"></i></button>` : ''}
+                    </div>
+                </div>
+            `;
+            return card;
+        }
+
+        function renderEmptyLibrary() {
+            return `
+                <div class="flex flex-col items-center justify-center h-96 text-gray-500 fade-in">
+                    <div class="w-24 h-24 bg-[#1a1a1a] rounded-full flex items-center justify-center mb-4 float-anim border border-[#333]">
+                        <i class="fas fa-gamepad text-4xl text-gray-600"></i>
+                    </div>
+                    <h2 class="text-xl font-bold text-gray-400 mb-2">Sua biblioteca está vazia</h2>
+                    <p class="mb-6">Adicione jogos via URL ou arquivo HTML para começar.</p>
+                    <button onclick="openAddModal()" class="text-accent hover:text-accent-hover font-medium flex items-center gap-2">
+                        Adicionar seu primeiro jogo <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+            `;
+        }
+
+        function filterGames() {
+            const text = document.getElementById('searchInput').value.toLowerCase();
+            const grid = document.getElementById('gameGrid');
+            
+            if (!grid) return;
+            
+            const cards = grid.querySelectorAll('.game-card');
+            cards.forEach(card => {
+                const name = card.querySelector('h3').textContent.toLowerCase();
+                if (name.includes(text)) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        // --- Modal Functions ---
+        function openAddModal() {
+            const modal = document.getElementById('addModal');
+            if (modal) modal.classList.remove('hidden');
+        }
+
+        function closeAddModal() {
+            const modal = document.getElementById('addModal');
+            if (modal) modal.classList.add('hidden');
+            resetForm();
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            const urlForm = document.getElementById('formUrl');
+            const fileForm = document.getElementById('formFile');
+            const urlBtn = document.getElementById('tabUrl');
+            const fileBtn = document.getElementById('tabFile');
+
+            if (!urlForm || !fileForm || !urlBtn || !fileBtn) return;
+
+            if (tab === 'url') {
+                urlForm.classList.remove('hidden');
+                fileForm.classList.add('hidden');
+                urlBtn.classList.add('text-accent', 'border-b-2', 'border-accent');
+                urlBtn.classList.remove('text-gray-400');
+                fileBtn.classList.remove('text-accent', 'border-b-2', 'border-accent');
+                fileBtn.classList.add('text-gray-400');
+            } else {
+                urlForm.classList.add('hidden');
+                fileForm.classList.remove('hidden');
+                fileBtn.classList.add('text-accent', 'border-b-2', 'border-accent');
+                fileBtn.classList.remove('text-gray-400');
+                urlBtn.classList.remove('text-accent', 'border-b-2', 'border-accent');
+                urlBtn.classList.add('text-gray-400');
+            }
+        }
+
+        function resetForm() {
+            const inputs = ['gameNameUrl', 'gameUrl', 'gameCoverUrl', 'gameNameFile', 'gameCoverFile'];
+            inputs.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            
+            const fileNameDisplay = document.getElementById('fileNameDisplay');
+            if (fileNameDisplay) fileNameDisplay.textContent = '';
+            
+            const fileInput = document.getElementById('gameFileInput');
+            if (fileInput) fileInput.value = '';
+            
+            selectedFileContent = null;
+            switchTab('url');
+        }
+
+        // --- Add/Delete Game Logic ---
+        function submitGame() {
+            let newGame = {};
+            const fallbackCovers = [
+                'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=600',
+                'https://images.unsplash.com/photo-1552820728-8b83bb6b773f?auto=format&fit=crop&q=80&w=600',
+                'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&q=80&w=600',
+                'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&q=80&w=600'
+            ];
+            const randomCover = fallbackCovers[Math.floor(Math.random() * fallbackCovers.length)];
+
+            if (currentTab === 'url') {
+                const nameEl = document.getElementById('gameNameUrl');
+                const urlEl = document.getElementById('gameUrl');
+                const coverEl = document.getElementById('gameCoverUrl');
+                
+                if (!nameEl || !urlEl) return;
+                
+                const name = nameEl.value;
+                const url = urlEl.value;
+                let cover = coverEl ? coverEl.value : '';
+
+                if (!name || !url) {
+                    alert("Por favor, preencha o nome e a URL.");
+                    return;
+                }
+
+                if (!cover) cover = randomCover;
+
+                newGame = {
+                    id: Date.now(),
+                    name: name,
+                    type: 'url',
+                    src: url,
+                    cover: cover
+                };
+
+            } else {
+                const nameEl = document.getElementById('gameNameFile');
+                const coverEl = document.getElementById('gameCoverFile');
+                
+                if (!nameEl) return;
+                
+                const name = nameEl.value;
+                let cover = coverEl ? coverEl.value : '';
+
+                if (!name || !selectedFileContent) {
+                    alert("Por favor, preencha o nome e selecione um arquivo HTML.");
+                    return;
+                }
+
+                if (!cover) cover = randomCover;
+
+                const blob = new Blob([selectedFileContent], { type: 'text/html' });
+                const blobUrl = URL.createObjectURL(blob);
+
+                newGame = {
+                    id: Date.now(),
+                    name: name,
+                    type: 'file',
+                    src: blobUrl,
+                    cover: cover
+                };
+            }
+
+            userGames.unshift(newGame);
+            localStorage.setItem('userGames', JSON.stringify(userGames));
+            
+            renderGames();
+            closeAddModal();
+            
+            switchView('library');
+        }
+
+        function deleteGame(id) {
+            if (confirm('Tem certeza que deseja remover este jogo da biblioteca?')) {
+                userGames = userGames.filter(g => g.id !== id);
+                localStorage.setItem('userGames', JSON.stringify(userGames));
+                switchView('library');
+            }
+        }
+
+        function renderGames() {
+            const countEl = document.getElementById('libraryCount');
+            if (countEl) countEl.textContent = userGames.length;
+        }
+
+        // --- Player Logic ---
+        function launchGame(game) {
+            const modal = document.getElementById('playerModal');
+            const iframe = document.getElementById('gameFrame');
+            const title = document.getElementById('playerTitle');
+            const loader = document.getElementById('loadingOverlay');
+
+            if (!modal || !iframe || !title || !loader) return;
+
+            currentGameSrc = game.src;
+            title.textContent = game.name;
+            modal.classList.remove('hidden');
+            loader.classList.remove('hidden');
+
+            iframe.src = game.src;
+
+            iframe.onload = () => {
+                loader.classList.add('hidden');
+            };
+        }
+
+        function closePlayer() {
+            const modal = document.getElementById('playerModal');
+            const iframe = document.getElementById('gameFrame');
+            
+            if (modal) modal.classList.add('hidden');
+            if (iframe) iframe.src = 'about:blank';
+            
+            if (document.fullscreenElement) {
+                document.exitFullscreen().catch(err => console.log(err));
+            }
+        }
+
+        function openInNewWindow() {
+            if (!currentGameSrc) return;
+            window.open(currentGameSrc, '_blank');
+        }
+
+        function toggleFullscreen() {
+            const elem = document.documentElement;
+            if (!document.fullscreenElement) {
+                elem.requestFullscreen().catch(err => console.log(err));
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+
+        // --- Theme Settings ---
+        function setTheme(color) {
+            // Remove current theme class
+            document.body.classList.remove(
+                'theme-orange', 'theme-blue', 'theme-purple', 'theme-green', 
+                'theme-red', 'theme-pink', 'theme-cyan', 'theme-yellow', 'theme-indigo'
+            );
+            
+            // Add new theme class
+            document.body.classList.add(`theme-${color}`);
+            
+            // Update button rings
+            document.querySelectorAll('.theme-btn').forEach(btn => {
+                if (btn) {
+                    btn.classList.remove('ring-accent');
+                    btn.classList.add('ring-transparent');
+                }
+            });
+            
+            const activeBtn = document.querySelector(`.theme-btn[data-theme="${color}"]`);
+            if (activeBtn) {
+                activeBtn.classList.remove('ring-transparent');
+                activeBtn.classList.add('ring-accent');
+            }
+
+            // Save preference
+            localStorage.setItem('theme', color);
+        }
+
+        function setBackground(bgType) {
+            // Remove all bg classes
+            document.body.classList.remove(
+                'bg-none', 'bg-cyber', 'bg-space', 'bg-nature', 
+                'bg-abstract', 'bg-dark', 'bg-gradient', 'bg-custom'
+            );
+            
+            // Add selected bg class
+            document.body.classList.add(`bg-${bgType}`);
+            
+            // Update button borders
+            document.querySelectorAll('.bg-btn').forEach(btn => {
+                if (btn) {
+                    btn.classList.remove('border-accent');
+                    btn.classList.add('border-[#333]');
+                }
+            });
+            
+            // Highlight active button
+            const activeBtn = document.querySelector(`.bg-btn[data-bg="${bgType}"]`);
+            if (activeBtn) {
+                activeBtn.classList.remove('border-[#333]');
+                activeBtn.classList.add('border-accent');
+            }
+
+            // Clear custom URL
+            localStorage.removeItem('customBg');
+            
+            // Save preference
+            localStorage.setItem('background', bgType);
+        }
+
+        function setCustomBackground() {
+            const urlInput = document.getElementById('customBgUrl');
+            if (!urlInput) return;
+            
+            const url = urlInput.value.trim();
+            if (!url) {
+                alert('Por favor, insira uma URL válida de imagem.');
+                return;
+            }
+
+            // Remove all bg classes
+            document.body.classList.remove(
+                'bg-none', 'bg-cyber', 'bg-space', 'bg-nature', 
+                'bg-abstract', 'bg-dark', 'bg-gradient'
+            );
+            
+            // Apply custom background
+            document.body.classList.add('bg-custom');
+            document.body.style.backgroundImage = `url('${url}')`;
+            
+            // Update button borders
+            document.querySelectorAll('.bg-btn').forEach(btn => {
+                if (btn) {
+                    btn.classList.remove('border-accent');
+                    btn.classList.add('border-[#333]');
+                }
+            });
+
+            // Save preference
+            localStorage.setItem('customBg', url);
+            localStorage.setItem('background', 'custom');
+        }
+
+        function clearCustomBackground() {
+            document.body.style.backgroundImage = '';
+            document.body.classList.remove('bg-custom');
+            localStorage.removeItem('customBg');
+            
+            // Reset to none
+            setBackground('none');
+        }
+
+        // Load saved preferences
+        function loadPreferences() {
+            const savedTheme = localStorage.getItem('theme');
+            const savedBg = localStorage.getItem('background');
+            const savedCustomBg = localStorage.getItem('customBg');
+            
+            if (savedTheme) {
+                setTheme(savedTheme);
+            }
+            
+            if (savedCustomBg) {
+                document.body.classList.remove(
+                    'bg-none', 'bg-cyber', 'bg-space', 'bg-nature', 
+                    'bg-abstract', 'bg-dark', 'bg-gradient'
+                );
+                document.body.classList.add('bg-custom');
+                document.body.style.backgroundImage = `url('${savedCustomBg}')`;
+                
+                const urlInput = document.getElementById('customBgUrl');
+                if (urlInput) urlInput.value = savedCustomBg;
+            } else if (savedBg) {
+                const bgBtn = document.querySelector(`.bg-btn[data-bg="${savedBg}"]`);
+                if (bgBtn) {
+                    document.body.classList.remove(
+                        'bg-none', 'bg-cyber', 'bg-space', 'bg-nature', 
+                        'bg-abstract', 'bg-dark', 'bg-gradient', 'bg-custom'
+                    );
+                    document.body.classList.add(`bg-${savedBg}`);
+                    bgBtn.classList.remove('border-[#333]');
+                    bgBtn.classList.add('border-accent');
+                }
+            }
+        }
+
+    </script>
+</body>
+</html>
 
