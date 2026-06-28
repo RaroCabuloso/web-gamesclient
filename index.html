@@ -121,6 +121,12 @@
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        @keyframes hudBtnPulse {
+            0%   { transform: scale(1);    box-shadow: 0 0 0 0 rgba(225,29,72,0.7); }
+            70%  { transform: scale(1.08); box-shadow: 0 0 0 12px rgba(225,29,72,0); }
+            100% { transform: scale(1);    box-shadow: 0 0 0 0 rgba(225,29,72,0); }
+        }
+        #hudTriggerBtn.pulsing { animation: hudBtnPulse 1.1s ease-out 3; opacity: 1 !important; }
     </style>
 </head>
 <body class="h-screen w-screen flex flex-col overflow-hidden theme-orange bg-none">
@@ -346,8 +352,8 @@
                  keyboard focus and intercepts the Ctrl+U shortcut. -->
             <button id="hudTriggerBtn" onclick="if (window.__toggleGameHud) window.__toggleGameHud();"
                 title="Abrir configurações (Ctrl + U)"
-                class="absolute bottom-4 right-4 z-20 w-11 h-11 flex items-center justify-center rounded-full bg-[#1a1a1a]/80 hover:bg-accent text-white border border-[#333] shadow-lg backdrop-blur-sm transition-all active:scale-95 opacity-60 hover:opacity-100">
-                <i class="fas fa-sliders-h"></i>
+                class="absolute bottom-4 right-4 z-20 h-11 px-4 flex items-center justify-center gap-2 rounded-full bg-[#1a1a1a]/80 hover:bg-accent text-white text-sm font-medium border border-[#333] shadow-lg backdrop-blur-sm transition-all active:scale-95 opacity-60 hover:opacity-100">
+                <i class="fas fa-sliders-h"></i> <span>Menu</span>
             </button>
         </div>
     </div>
@@ -717,22 +723,54 @@
             title.textContent = game.name;
             modal.classList.remove('hidden');
             loader.classList.remove('hidden');
+            hudFocusPulseDone = false;
 
             iframe.src = game.src;
 
             iframe.onload = () => {
                 loader.classList.add('hidden');
                 // Try to wire the Ctrl+U shortcut directly into the game window so it
-                // works even when the game has keyboard focus (only succeeds for
-                // same-origin / local games; cross-origin games use the floating button).
+                // works even when the game has keyboard focus. This ONLY succeeds for
+                // same-origin / local (uploaded) games. For cross-origin URL games the
+                // browser blocks keyboard access, so users rely on the floating button.
+                let keysWired = false;
                 if (window.__attachHudKeys && iframe.contentWindow) {
-                    window.__attachHudKeys(iframe.contentWindow);
+                    keysWired = window.__attachHudKeys(iframe.contentWindow);
                 }
+                // Pulse the Menu button so the player notices it, especially important
+                // for cross-origin games where Ctrl+U cannot reach the launcher.
+                pulseHudButton();
             };
 
             // Start/refresh the in-game HUD overlay
             if (window.__refreshGameHud) window.__refreshGameHud();
         }
+
+        // Briefly animate the floating Menu button to draw the player's attention.
+        function pulseHudButton() {
+            const btn = document.getElementById('hudTriggerBtn');
+            if (!btn) return;
+            btn.classList.remove('pulsing');
+            // Force reflow so the animation can restart if triggered again.
+            void btn.offsetWidth;
+            btn.classList.add('pulsing');
+        }
+
+        // When the game iframe grabs keyboard focus, Ctrl+U no longer reaches the
+        // launcher (browser security). Detect that moment and pulse the Menu button
+        // once so the user learns to use it instead.
+        let hudFocusPulseDone = false;
+        window.addEventListener('blur', () => {
+            const modal = document.getElementById('playerModal');
+            if (!modal || modal.classList.contains('hidden')) return;
+            // A short delay lets document.activeElement update to the iframe.
+            setTimeout(() => {
+                if (document.activeElement && document.activeElement.id === 'gameFrame' && !hudFocusPulseDone) {
+                    hudFocusPulseDone = true;
+                    pulseHudButton();
+                }
+            }, 50);
+        });
 
         function closePlayer() {
             const modal = document.getElementById('playerModal');
