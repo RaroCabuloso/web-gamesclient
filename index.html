@@ -342,6 +342,13 @@
             <div id="loadingOverlay" class="absolute inset-0 flex items-center justify-center bg-black z-10">
                 <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
             </div>
+            <!-- Floating HUD trigger: always works, even when the game iframe has
+                 keyboard focus and intercepts the Ctrl+U shortcut. -->
+            <button id="hudTriggerBtn" onclick="if (window.__toggleGameHud) window.__toggleGameHud();"
+                title="Abrir configurações (Ctrl + U)"
+                class="absolute bottom-4 right-4 z-20 w-11 h-11 flex items-center justify-center rounded-full bg-[#1a1a1a]/80 hover:bg-accent text-white border border-[#333] shadow-lg backdrop-blur-sm transition-all active:scale-95 opacity-60 hover:opacity-100">
+                <i class="fas fa-sliders-h"></i>
+            </button>
         </div>
     </div>
 
@@ -715,6 +722,12 @@
 
             iframe.onload = () => {
                 loader.classList.add('hidden');
+                // Try to wire the Ctrl+U shortcut directly into the game window so it
+                // works even when the game has keyboard focus (only succeeds for
+                // same-origin / local games; cross-origin games use the floating button).
+                if (window.__attachHudKeys && iframe.contentWindow) {
+                    window.__attachHudKeys(iframe.contentWindow);
+                }
             };
 
             // Start/refresh the in-game HUD overlay
@@ -750,7 +763,18 @@
 
             // Mount the same in-game settings HUD inside the popup window
             const mount = () => {
-                try { mountGameHud(popup); } catch (err) { console.log(err); }
+                try {
+                    mountGameHud(popup);
+                    // Wire Ctrl+U into the popup's game frame when same-origin.
+                    const pFrame = popup.document.getElementById('popupGameFrame');
+                    if (pFrame) {
+                        pFrame.addEventListener('load', () => {
+                            if (popup.__attachHudKeys && pFrame.contentWindow) {
+                                popup.__attachHudKeys(pFrame.contentWindow);
+                            }
+                        });
+                    }
+                } catch (err) { console.log(err); }
             };
             if (popup.document.readyState === 'complete') {
                 mount();
@@ -773,11 +797,20 @@
     <style>
         html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
         #popupGameFrame { position: absolute; inset: 0; width: 100%; height: 100%; border: none; }
+        #popupHudBtn { position: fixed; bottom: 16px; right: 16px; z-index: 20; width: 44px; height: 44px;
+            display: flex; align-items: center; justify-content: center; border-radius: 50%; cursor: pointer;
+            background: rgba(26,26,26,0.8); color: #fff; border: 1px solid #333; font-size: 16px;
+            backdrop-filter: blur(4px); opacity: 0.6; transition: opacity .2s, background .2s; }
+        #popupHudBtn:hover { opacity: 1; background: var(--accent, #e11d48); }
     </style>
 </head>
 <body>
     <iframe id="popupGameFrame" src="${src}" allow="fullscreen"
         sandbox="allow-scripts allow-same-origin allow-pointer-lock allow-forms allow-popups"></iframe>
+    <button id="popupHudBtn" title="Abrir configurações (Ctrl + U)"
+        onclick="if (window.__toggleGameHud) window.__toggleGameHud();">
+        <i class="fas fa-sliders-h"></i>
+    </button>
 </body>
 </html>`;
         }
@@ -1118,19 +1151,36 @@
             });
 
             // --- Open / close ---
-            function toggleHud() { overlay.classList.toggle('active'); }
+            function toggleHud() { if (!canOpen()) return; overlay.classList.toggle('active'); }
             function closeHud() { overlay.classList.remove('active'); }
 
-            win.addEventListener('keydown', (e) => {
+            // Shared keyboard handler. It is attached to the launcher window AND,
+            // whenever possible, to the game iframe's own window. Without this, key
+            // presses that happen while the game has focus never reach the launcher.
+            function hudKeyHandler(e) {
                 if (e.ctrlKey && (e.key === 'u' || e.key === 'U')) {
                     if (!canOpen()) return;
                     e.preventDefault();
-                    toggleHud();
+                    overlay.classList.toggle('active');
                 } else if (e.key === 'Escape') {
                     if (fpsModal.classList.contains('visible')) { fpsModal.classList.remove('visible'); return; }
                     if (overlay.classList.contains('active')) closeHud();
                 }
-            });
+            }
+            win.addEventListener('keydown', hudKeyHandler);
+
+            // Wires the same shortcut into another (same-origin) window, e.g. a game
+            // iframe. Cross-origin frames throw and silently fall back to the button.
+            win.__attachHudKeys = function (otherWin) {
+                try {
+                    if (otherWin && otherWin !== win) {
+                        otherWin.addEventListener('keydown', hudKeyHandler);
+                    }
+                    return true;
+                } catch (err) {
+                    return false;
+                }
+            };
 
             // --- Sidebar view switching ---
             const views = { geral: 'hudViewGeral', config: 'hudViewConfig', info: 'hudViewInfo' };
@@ -1159,6 +1209,7 @@
 
             win.__closeGameHud = closeHud;
             win.__refreshGameHud = applyFps;
+            win.__toggleGameHud = toggleHud;
 
             applyFpsStyle();
             applyUiEditor();
